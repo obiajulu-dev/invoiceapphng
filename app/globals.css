@@ -1,8 +1,19 @@
 @import "tailwindcss";
+@source "../components";
+@source "../contexts";
+@source "../hooks";
+@source "../lib";
+
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8f8fb;
+  --foreground: #0c0e16;
+  --accent-primary: #7c5dfa;
+  --accent-hover: #9277ff;
+  --text-secondary: #888eb0;
+  --danger: #ec5757;
+  --danger-hover: #ff9797;
 }
 
 @theme inline {
@@ -12,15 +23,24 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  --background: #141625;
+  --foreground: #ffffff;
+  --text-secondary: #dfe3fa;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Remove number input spinners */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
 }
