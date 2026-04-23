@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Invoice, InvoiceFormData } from '@/types';
 import { generateInvoiceId } from '@/lib/utils';
+import { calculatePaymentDue } from '@/lib/utils';
+import { calculateTotal } from '@/lib/validators';
 import { useLocalStorage } from './useLocalStorage';
 
 const STORAGE_KEY = 'invoiceapphng:invoices';
@@ -11,6 +13,9 @@ export const useInvoices = () => {
     const [error, setError] = useState<string | null>(null);
 
     const createInvoice = async (invoiceData: InvoiceFormData): Promise<Invoice> => {
+        const total = calculateTotal(invoiceData.items);
+        const paymentDue = calculatePaymentDue(invoiceData.createdAt, invoiceData.paymentTerms);
+
         const newInvoice: Invoice = {
             id: invoiceData.id || generateInvoiceId(),
             clientName: invoiceData.clientName,
@@ -21,10 +26,10 @@ export const useInvoices = () => {
             clientCountry: invoiceData.clientCountry,
             createdAt: invoiceData.createdAt,
             paymentTerms: invoiceData.paymentTerms,
-            paymentDue: invoiceData.paymentDue,
+            paymentDue,
             description: invoiceData.description,
             items: invoiceData.items,
-            total: invoiceData.total,
+            total,
             status: invoiceData.status,
             updatedAt: new Date().toISOString(),
         };
