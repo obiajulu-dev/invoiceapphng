@@ -1,31 +1,34 @@
-import { notFound } from 'next/navigation';
+'use client';
+
+import { useMemo } from 'react';
+import { useParams } from 'next/navigation';
 import { InvoiceDetail } from '@/components/invoices/InvoiceDetail';
-import { Invoice } from '@/types';
+import { useInvoices } from '@/hooks/useInvoices';
 
-import { getInvoiceById } from '@/lib/db';
+export default function InvoiceDetailPage() {
+    const params = useParams();
+    const invoiceId = params?.id;
+    const { invoices, loading } = useInvoices();
 
-interface InvoiceDetailPageProps {
-    params: Promise<{
-        id: string;
-    }>;
-}
+    const invoice = useMemo(
+        () => invoices.find(inv => inv.id === invoiceId),
+        [invoices, invoiceId]
+    );
 
-async function getInvoice(id: string): Promise<Invoice | null> {
-    try {
-        const invoice = await getInvoiceById(id);
-        return invoice || null;
-    } catch (error) {
-        console.error('Error fetching invoice:', error);
-        return null;
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--accent-primary)]" />
+            </div>
+        );
     }
-}
-
-export default async function InvoiceDetailPage({ params }: InvoiceDetailPageProps) {
-    const { id } = await params;
-    const invoice = await getInvoice(id);
 
     if (!invoice) {
-        notFound();
+        return (
+            <div className="py-8 text-center text-[var(--foreground)]">
+                Invoice not found.
+            </div>
+        );
     }
 
     return (

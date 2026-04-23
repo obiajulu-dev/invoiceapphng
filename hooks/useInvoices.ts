@@ -1,51 +1,41 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Invoice, InvoiceFormData } from '@/types';
+import { generateInvoiceId } from '@/lib/utils';
+import { useLocalStorage } from './useLocalStorage';
+
+const STORAGE_KEY = 'invoiceapphng:invoices';
 
 export const useInvoices = () => {
-    const [invoices, setInvoices] = useState<Invoice[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
+    const [invoices, setInvoices, isInitialized] = useLocalStorage<Invoice[]>(STORAGE_KEY, []);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchInvoices = useCallback(async (): Promise<void> => {
-        try {
-            setLoading(true);
-            const response = await fetch('/api/invoices');
-            const result = await response.json();
-
-            if (result.success) {
-                setInvoices(result.data);
-            } else {
-                throw new Error(result.error);
-            }
-        } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to fetch invoices';
-            setError(message);
-            toast.error(message);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
     const createInvoice = async (invoiceData: InvoiceFormData): Promise<Invoice> => {
+        const newInvoice: Invoice = {
+            id: invoiceData.id || generateInvoiceId(),
+            clientName: invoiceData.clientName,
+            clientEmail: invoiceData.clientEmail,
+            clientAddress: invoiceData.clientAddress,
+            clientCity: invoiceData.clientCity,
+            clientPostCode: invoiceData.clientPostCode,
+            clientCountry: invoiceData.clientCountry,
+            createdAt: invoiceData.createdAt,
+            paymentTerms: invoiceData.paymentTerms,
+            paymentDue: invoiceData.paymentDue,
+            description: invoiceData.description,
+            items: invoiceData.items,
+            total: invoiceData.total,
+            status: invoiceData.status,
+            updatedAt: new Date().toISOString(),
+        };
+
         try {
-            const response = await fetch('/api/invoices', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(invoiceData),
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                setInvoices(prev => [...prev, result.data]);
-                toast.success('Invoice created successfully');
-                return result.data;
-            } else {
-                throw new Error(result.error || 'Validation failed');
-            }
+            setInvoices(prev => [...prev, newInvoice]);
+            toast.success('Invoice created successfully');
+            return newInvoice;
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to create invoice';
+            setError(message);
             toast.error(message);
             throw error;
         }
@@ -53,25 +43,27 @@ export const useInvoices = () => {
 
     const updateInvoice = async (id: string, invoiceData: Partial<Invoice>): Promise<Invoice> => {
         try {
-            const response = await fetch(`/api/invoices/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(invoiceData),
-            });
+            let updatedInvoice: Invoice | null = null;
 
-            const result = await response.json();
+            setInvoices(prev => prev.map(inv => {
+                if (inv.id !== id) return inv;
+                updatedInvoice = {
+                    ...inv,
+                    ...invoiceData,
+                    updatedAt: new Date().toISOString(),
+                } as Invoice;
+                return updatedInvoice;
+            }));
 
-            if (result.success) {
-                setInvoices(prev =>
-                    prev.map(inv => inv.id === id ? result.data : inv)
-                );
-                toast.success('Invoice updated successfully');
-                return result.data;
-            } else {
-                throw new Error(result.error || 'Update failed');
+            if (!updatedInvoice) {
+                throw new Error('Invoice not found');
             }
+
+            toast.success('Invoice updated successfully');
+            return updatedInvoice;
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to update invoice';
+            setError(message);
             toast.error(message);
             throw error;
         }
@@ -79,21 +71,23 @@ export const useInvoices = () => {
 
     const deleteInvoice = async (id: string): Promise<boolean> => {
         try {
-            const response = await fetch(`/api/invoices/${id}`, {
-                method: 'DELETE',
+            let deleted = false;
+
+            setInvoices(prev => {
+                const filtered = prev.filter(inv => inv.id !== id);
+                deleted = filtered.length !== prev.length;
+                return filtered;
             });
 
-            const result = await response.json();
-
-            if (result.success) {
-                setInvoices(prev => prev.filter(inv => inv.id !== id));
-                toast.success('Invoice deleted successfully');
-                return true;
-            } else {
-                throw new Error(result.error || 'Delete failed');
+            if (!deleted) {
+                throw new Error('Invoice not found');
             }
+
+            toast.success('Invoice deleted successfully');
+            return true;
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to delete invoice';
+            setError(message);
             toast.error(message);
             throw error;
         }
@@ -101,42 +95,44 @@ export const useInvoices = () => {
 
     const markAsPaid = async (id: string): Promise<Invoice> => {
         try {
-            const response = await fetch(`/api/invoices/${id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'markAsPaid' }),
-            });
+            let updatedInvoice: Invoice | null = null;
 
-            const result = await response.json();
+            setInvoices(prev => prev.map(inv => {
+                if (inv.id !== id) return inv;
+                updatedInvoice = {
+                    ...inv,
+                    status: 'paid',
+                    updatedAt: new Date().toISOString(),
+                } as Invoice;
+                return updatedInvoice;
+            }));
 
-            if (result.success) {
-                setInvoices(prev =>
-                    prev.map(inv => inv.id === id ? result.data : inv)
-                );
-                toast.success('Invoice marked as paid');
-                return result.data;
-            } else {
-                throw new Error(result.error || 'Failed to mark as paid');
+            if (!updatedInvoice) {
+                throw new Error('Invoice not found');
             }
+
+            toast.success('Invoice marked as paid');
+            return updatedInvoice;
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to mark invoice as paid';
+            setError(message);
             toast.error(message);
             throw error;
         }
     };
 
     useEffect(() => {
-        fetchInvoices();
-    }, [fetchInvoices]);
+        if (!isInitialized) return;
+    }, [isInitialized]);
 
     return {
         invoices,
-        loading,
+        loading: !isInitialized,
         error,
         createInvoice,
         updateInvoice,
         deleteInvoice,
         markAsPaid,
-        refetch: fetchInvoices,
+        refetch: async () => {},
     };
 };

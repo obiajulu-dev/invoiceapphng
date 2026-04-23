@@ -85,4 +85,4 @@ export const deleteInvoice = async (id: string): Promise<boolean> => {
     db.invoices = filtered;
     await writeInvoices(db);
     return true;
-};
+};  
